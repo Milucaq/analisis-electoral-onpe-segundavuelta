@@ -119,3 +119,64 @@ st.dataframe(ganador_dep)
 # ==============================
 st.subheader("📋 Datos")
 st.dataframe(df.head(300))
+# ==============================
+# VISUALIZACIONES
+# ==============================
+st.header("📊 Visualización de resultados")
+
+# ------------------------------
+# 1. BARRAS - VOTOS POR CANDIDATO
+# ------------------------------
+st.subheader("🗳 Votos por candidato")
+
+df_candidatos = pd.DataFrame({
+    "Candidato": ["Perú Libre", "Fuerza Popular"],
+    "Votos": [votos_p1, votos_p2]
+}).set_index("Candidato")
+
+st.bar_chart(df_candidatos)
+
+# ------------------------------
+# 2. DISTRIBUCIÓN POR REGIÓN
+# ------------------------------
+st.subheader("🌎 Distribución de votos por región")
+
+votos_region = df.groupby("DEPARTAMENTO")[["VOTOS_P1", "VOTOS_P2"]].sum()
+
+st.bar_chart(votos_region)
+
+# ------------------------------
+# 3. COMPARACIÓN GENERAL
+# ------------------------------
+st.subheader("⚖️ Comparación de resultados")
+
+df_comparacion = pd.DataFrame({
+    "Tipo": ["Perú Libre", "Fuerza Popular", "Nulos", "Blancos"],
+    "Votos": [votos_p1, votos_p2, votos_nulos, votos_blancos]
+}).set_index("Tipo")
+
+st.bar_chart(df_comparacion)
+# ==============================
+# INTERPRETACIÓN
+# ==============================
+st.header("🧠 Interpretación de resultados")
+
+# Diferencia
+diferencia = abs(votos_p1 - votos_p2)
+
+if votos_p1 > votos_p2:
+    texto_ganador = "Perú Libre"
+else:
+    texto_ganador = "Fuerza Popular"
+
+st.write(f"""
+🔎 **Análisis general:**
+
+- El candidato ganador es **{texto_ganador}**, con una diferencia de **{int(diferencia)} votos**.
+- Se observa una clara distribución de votos a nivel nacional.
+- Los votos válidos representan la mayor proporción del total.
+- Los votos nulos y blancos tienen menor impacto, pero son relevantes para el análisis electoral.
+
+📊 **Conclusión:**
+Los resultados reflejan la preferencia electoral de la población en la segunda vuelta presidencial, mostrando diferencias entre regiones y una tendencia clara hacia el candidato ganador.
+""")
