@@ -106,42 +106,84 @@ st.dataframe(df.head(500))
 st.subheader("📈 Estadísticas")
 st.write(df.describe())
 # ==============================
-# ANÁLISIS ELECTORAL (PARTE 2)
+# PARTE 2: ANÁLISIS + LIMPIEZA
 # ==============================
 
-st.subheader("📊 Análisis de datos electorales")
+st.header("📊 Análisis de datos electorales (Antes vs Después)")
 
-# Número de mesas
-numero_mesas = len(df)
-
-# Detectar columnas automáticamente
-col_ubigeo = [c for c in df.columns if "UBIGEO" in c.upper()]
+# ------------------------------
+# DETECTAR COLUMNAS
+# ------------------------------
 col_validos = [c for c in df.columns if "VALID" in c.upper()]
 col_nulos = [c for c in df.columns if "NULO" in c.upper()]
 col_blancos = [c for c in df.columns if "BLANCO" in c.upper()]
 
-# KPIs
-col1, col2, col3, col4 = st.columns(4)
+# Tomamos la primera coincidencia
+col_validos = col_validos[0] if col_validos else None
+col_nulos = col_nulos[0] if col_nulos else None
+col_blancos = col_blancos[0] if col_blancos else None
 
-col1.metric("Número de mesas", numero_mesas)
+# ------------------------------
+# ANTES DE LIMPIEZA
+# ------------------------------
+st.subheader("🟥 Antes de la limpieza")
 
-if col_ubigeo:
-    col2.metric("Ubigeos únicos", df[col_ubigeo[0]].nunique())
+df_antes = df.copy()
 
-if col_validos:
-    col3.metric("Votos válidos", int(df[col_validos[0]].sum()))
+# Convertir a numérico por seguridad
+for col in [col_validos, col_nulos, col_blancos]:
+    if col:
+        df_antes[col] = pd.to_numeric(df_antes[col], errors="coerce")
 
-if col_nulos and col_blancos:
-    col4.metric("Nulos + Blancos", int(df[col_nulos[0]].sum() + df[col_blancos[0]].sum()))
+# Totales antes
+validos_antes = df_antes[col_validos].sum() if col_validos else 0
+nulos_antes = df_antes[col_nulos].sum() if col_nulos else 0
+blancos_antes = df_antes[col_blancos].sum() if col_blancos else 0
 
-# ==============================
+# Crear dataframe resumen
+data_antes = pd.DataFrame({
+    "Tipo": ["Válidos", "Nulos", "Blancos"],
+    "Cantidad": [validos_antes, nulos_antes, blancos_antes]
+})
+
+# Gráfico de barras
+st.write("Gráfico de barras (Antes)")
+st.bar_chart(data_antes.set_index("Tipo"))
+
+# Gráfico circular
+st.write("Gráfico circular (Antes)")
+st.pyplot(data_antes.set_index("Tipo").plot.pie(y="Cantidad", autopct='%1.1f%%').figure)
+
+# ------------------------------
 # LIMPIEZA DE DATOS
-# ==============================
-
+# ------------------------------
 st.subheader("🧹 Limpieza de datos")
 
-# Reemplazar nulos
-df_limpio = df.fillna(0)
+df_despues = df.copy()
 
-st.write("Datos después de limpieza:")
-st.dataframe(df_limpio.head())
+# Convertir a numérico y rellenar nulos
+for col in [col_validos, col_nulos, col_blancos]:
+    if col:
+        df_despues[col] = pd.to_numeric(df_despues[col], errors="coerce").fillna(0)
+
+# ------------------------------
+# DESPUÉS DE LIMPIEZA
+# ------------------------------
+st.subheader("🟩 Después de la limpieza")
+
+validos_despues = df_despues[col_validos].sum() if col_validos else 0
+nulos_despues = df_despues[col_nulos].sum() if col_nulos else 0
+blancos_despues = df_despues[col_blancos].sum() if col_blancos else 0
+
+data_despues = pd.DataFrame({
+    "Tipo": ["Válidos", "Nulos", "Blancos"],
+    "Cantidad": [validos_despues, nulos_despues, blancos_despues]
+})
+
+# Gráfico de barras
+st.write("Gráfico de barras (Después)")
+st.bar_chart(data_despues.set_index("Tipo"))
+
+# Gráfico circular
+st.write("Gráfico circular (Después)")
+st.pyplot(data_despues.set_index("Tipo").plot.pie(y="Cantidad", autopct='%1.1f%%').figure)
