@@ -1,19 +1,24 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración de página
-st.set_page_config(page_title="Resultados ONPE", layout="wide")
-
-# Título
+# CONFIG
+st.set_page_config(page_title="Resultados ONPE 2021", layout="wide")
 st.title("Resultados Electorales ONPE 2021")
 
 # ==============================
-# CARGAR DATOS (DESDE EL REPO)
+# CARGAR DATOS DESDE GITHUB
 # ==============================
 
 @st.cache_data
 def cargar_datos():
-    return pd.read_csv("Resultados_2da_vuelta_Version_PCM.csv", encoding='latin1')
+    url = "https://raw.githubusercontent.com/Milucaq/analisis-electoral-onpe-segundavuelta/main/Resultados_2da_vuelta_Version_PCM.csv"
+    
+    return pd.read_csv(
+        url,
+        sep=";",              # MUY IMPORTANTE
+        encoding="latin1",
+        engine="python"
+    )
 
 df = cargar_datos()
 
@@ -25,23 +30,31 @@ st.subheader("Vista general del dataset")
 st.dataframe(df.head())
 
 # ==============================
-# FILTRO POR DEPARTAMENTO
+# DETECTAR DEPARTAMENTO
 # ==============================
 
-# Ajuste automático (primera columna)
-columna_departamento = df.columns[0]
+posibles_columnas = [col for col in df.columns if "DEPART" in col.upper()]
+
+if len(posibles_columnas) > 0:
+    columna_departamento = posibles_columnas[0]
+else:
+    columna_departamento = df.columns[0]
+
+# ==============================
+# FILTRO
+# ==============================
 
 departamentos = df[columna_departamento].dropna().unique()
 
 depto_seleccionado = st.selectbox(
     "Selecciona un departamento:",
-    departamentos
+    sorted(departamentos)
 )
 
 df_filtrado = df[df[columna_departamento] == depto_seleccionado]
 
 # ==============================
-# MOSTRAR DATOS
+# TABLA
 # ==============================
 
 st.subheader(f"Datos del departamento: {depto_seleccionado}")
@@ -53,7 +66,7 @@ st.dataframe(df_filtrado)
 
 st.subheader("Visualización de datos")
 
-columnas_numericas = df_filtrado.select_dtypes(include=['int64', 'float64']).columns
+columnas_numericas = df_filtrado.select_dtypes(include=["int64", "float64"]).columns
 
 if len(columnas_numericas) > 0:
     columna_grafico = st.selectbox(
