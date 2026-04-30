@@ -8,7 +8,7 @@ st.set_page_config(page_title="ONPE 2021 Dashboard", layout="wide")
 st.title("📊 Resultados Electorales ONPE 2021")
 
 # ==============================
-# CARGAR DATA
+# CARGAR DATOS
 # ==============================
 @st.cache_data
 def cargar_datos():
@@ -20,107 +20,99 @@ df = cargar_datos()
 # ==============================
 # LIMPIEZA
 # ==============================
-columnas_votos = ["VOTOS_P1", "VOTOS_P2", "VOTOS_VB", "VOTOS_VN", "VOTOS_VI"]
+columnas = ["VOTOS_P1", "VOTOS_P2", "VOTOS_VB", "VOTOS_VN", "VOTOS_VI", "N_CVAS", "N_ELEC_HABIL"]
 
-for col in columnas_votos:
+for col in columnas:
     df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
 # ==============================
 # FILTROS
 # ==============================
-st.sidebar.header("Filtros")
+st.sidebar.header("🔎 Filtros")
 
 dep = st.sidebar.selectbox("Departamento", ["Todos"] + sorted(df["DEPARTAMENTO"].unique()))
-
 if dep != "Todos":
     df = df[df["DEPARTAMENTO"] == dep]
 
 prov = st.sidebar.selectbox("Provincia", ["Todos"] + sorted(df["PROVINCIA"].unique()))
-
 if prov != "Todos":
     df = df[df["PROVINCIA"] == prov]
 
 dist = st.sidebar.selectbox("Distrito", ["Todos"] + sorted(df["DISTRITO"].unique()))
-
 if dist != "Todos":
     df = df[df["DISTRITO"] == dist]
 
 # ==============================
 # KPIs
 # ==============================
-st.subheader("📌 Indicadores")
+st.subheader("📌 Indicadores clave")
 
-total_mesas = df["MESA_DE_VOTACION"].nunique()
+mesas = df["MESA_DE_VOTACION"].nunique()
 votos_p1 = df["VOTOS_P1"].sum()
 votos_p2 = df["VOTOS_P2"].sum()
 
 votos_validos = votos_p1 + votos_p2
 votos_nulos = df["VOTOS_VN"].sum()
 votos_blancos = df["VOTOS_VB"].sum()
+votos_impugnados = df["VOTOS_VI"].sum()
 
-ganador = "P1" if votos_p1 > votos_p2 else "P2"
+ganador = "Perú Libre" if votos_p1 > votos_p2 else "Fuerza Popular"
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Mesas", total_mesas)
-c2.metric("Votos válidos", int(votos_validos))
-c3.metric("Nulos", int(votos_nulos))
-c4.metric("Blancos", int(votos_blancos))
+c1.metric("🗳 Mesas", mesas)
+c2.metric("✔ Válidos", int(votos_validos))
+c3.metric("❌ Nulos", int(votos_nulos))
+c4.metric("⬜ Blancos", int(votos_blancos))
 
 st.success(f"🏆 Ganador: {ganador}")
 
 # ==============================
-# % VOTOS
+# PARTICIPACIÓN
 # ==============================
-st.subheader("📊 Porcentaje de votos")
+total_votantes = df["N_CVAS"].sum()
+total_habiles = df["N_ELEC_HABIL"].sum()
 
-total_general = votos_validos + votos_nulos + votos_blancos
+participacion = (total_votantes / total_habiles) * 100 if total_habiles > 0 else 0
 
-df_porcentaje = pd.DataFrame({
-    "Tipo": ["P1", "P2", "Nulos", "Blancos"],
+st.info(f"👥 Participación electoral: {participacion:.2f}%")
+
+# ==============================
+# GRÁFICO PRINCIPAL
+# ==============================
+st.subheader("📊 Distribución de votos")
+
+df_graf = pd.DataFrame({
+    "Tipo": ["Perú Libre", "Fuerza Popular", "Nulos", "Blancos"],
     "Votos": [votos_p1, votos_p2, votos_nulos, votos_blancos]
-})
+}).set_index("Tipo")
 
-df_porcentaje["%"] = (df_porcentaje["Votos"] / total_general) * 100
-
-st.dataframe(df_porcentaje)
-
-st.bar_chart(df_porcentaje.set_index("Tipo")["Votos"])
+st.bar_chart(df_graf)
 
 # ==============================
 # VOTOS POR DEPARTAMENTO
 # ==============================
 st.subheader("🏆 Votos por departamento")
 
-votos_dep = df.groupby("DEPARTAMENTO")[["VOTOS_P1", "VOTOS_P2"]].sum()
+df["TOTAL_VOTOS"] = df["VOTOS_P1"] + df["VOTOS_P2"]
+
+votos_dep = df.groupby("DEPARTAMENTO")["TOTAL_VOTOS"].sum().sort_values(ascending=False)
 
 st.bar_chart(votos_dep)
 
+st.dataframe(votos_dep.head(10))
+
 # ==============================
-# QUIÉN GANÓ POR DEPARTAMENTO
+# GANADOR POR DEPARTAMENTO
 # ==============================
 st.subheader("🗳 Ganador por departamento")
 
-votos_dep["GANADOR"] = votos_dep.apply(lambda x: "P1" if x["VOTOS_P1"] > x["VOTOS_P2"] else "P2", axis=1)
+ganador_dep = df.groupby("DEPARTAMENTO")[["VOTOS_P1", "VOTOS_P2"]].sum()
+ganador_dep["GANADOR"] = ganador_dep.apply(
+    lambda x: "Perú Libre" if x["VOTOS_P1"] > x["VOTOS_P2"] else "Fuerza Popular",
+    axis=1
+)
 
-st.dataframe(votos_dep.sort_values("VOTOS_P1", ascending=False))
-
-# ==============================
-# PARTE 2 - ANTES VS DESPUÉS
-# ==============================
-st.subheader("⚖️ Antes vs Después (limpieza)")
-
-# Antes
-antes_validos = df["VOTOS_P1"].sum() + df["VOTOS_P2"].sum()
-
-# Después (ya limpio)
-despues_validos = votos_validos
-
-df_comp = pd.DataFrame({
-    "Estado": ["Antes", "Después"],
-    "Votos válidos": [antes_validos, despues_validos]
-}).set_index("Estado")
-
-st.bar_chart(df_comp)
+st.dataframe(ganador_dep)
 
 # ==============================
 # TABLA
