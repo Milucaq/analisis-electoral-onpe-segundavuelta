@@ -6,7 +6,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
 
 # ==========================
-# 🏛️ CONFIGURACIÓN UI
+# 🏛 CONFIGURACIÓN
 # ==========================
 st.set_page_config(
     page_title="ONPE - Sistema Electoral",
@@ -15,11 +15,10 @@ st.set_page_config(
 )
 
 st.title("🗳 ONPE - Sistema de Resultados Electorales 2021")
-st.subheader("📊 Segunda Vuelta Electoral - Dashboard Interactivo")
+st.subheader("📊 Dashboard Interactivo de Segunda Vuelta")
 
 st.markdown("""
-Sistema de visualización y análisis electoral desarrollado con Machine Learning  
-para la transparencia de resultados ciudadanos.
+Sistema de análisis electoral con Machine Learning y visualización de resultados.
 """)
 
 # ==========================
@@ -28,7 +27,6 @@ para la transparencia de resultados ciudadanos.
 url = "https://raw.githubusercontent.com/Milucaq/analisis-electoral-onpe-segundavuelta/main/Resultados_2da_vuelta_Version_PCM.csv"
 df = pd.read_csv(url, sep=";", encoding="latin1")
 
-# Limpieza
 columnas = ["VOTOS_P1", "VOTOS_P2", "VOTOS_VB", "VOTOS_VN"]
 for col in columnas:
     df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
@@ -39,9 +37,9 @@ df["GANADOR"] = df.apply(
 )
 
 # ==========================
-# 🔎 SIDEBAR - FILTROS
+# 🔎 FILTROS
 # ==========================
-st.sidebar.header("🔎 Filtros de análisis")
+st.sidebar.header("🔎 Filtros")
 
 candidato = st.sidebar.selectbox(
     "Selecciona candidato",
@@ -56,9 +54,6 @@ if "DEPARTAMENTO" in df.columns:
 else:
     region = "Todos"
 
-# ==========================
-# 🔧 FILTRADO DE DATOS
-# ==========================
 df_filtrado = df.copy()
 
 if candidato != "Todos":
@@ -68,7 +63,7 @@ if region != "Todos" and "DEPARTAMENTO" in df.columns:
     df_filtrado = df_filtrado[df_filtrado["DEPARTAMENTO"] == region]
 
 # ==========================
-# 📊 KPIs PRINCIPALES
+# 📊 KPIs
 # ==========================
 votos_p1 = df_filtrado["VOTOS_P1"].sum()
 votos_p2 = df_filtrado["VOTOS_P2"].sum()
@@ -83,24 +78,43 @@ col3.metric("Blancos", int(votos_vb))
 col4.metric("Nulos", int(votos_vn))
 
 # ==========================
-# 📈 GRÁFICO PRINCIPAL
+# 📊 GRÁFICO DE BARRAS (PEQUEÑO)
 # ==========================
-st.subheader("📊 Distribución de Votos")
+st.subheader("📉 Gráfico de Barras (Comparación)")
+
+fig1, ax1 = plt.subplots(figsize=(4, 3))  # 🔥 más pequeño
 
 labels = ["Perú Libre", "Fuerza Popular", "Blancos", "Nulos"]
 values = [votos_p1, votos_p2, votos_vb, votos_vn]
 
-fig, ax = plt.subplots()
-ax.bar(labels, values)
-ax.set_title("Resultados Electorales ONPE")
-ax.set_ylabel("Votos")
+ax1.bar(labels, values)
+ax1.set_title("Votos")
+ax1.set_ylabel("Cantidad")
 
-st.pyplot(fig)
+st.pyplot(fig1)
+
+# ==========================
+# 🥧 GRÁFICO CIRCULAR
+# ==========================
+st.subheader("🥧 Distribución Porcentual de Votos")
+
+fig2, ax2 = plt.subplots()
+
+ax2.pie(
+    values,
+    labels=labels,
+    autopct="%1.1f%%",
+    startangle=90
+)
+
+ax2.set_title("Distribución Electoral")
+
+st.pyplot(fig2)
 
 # ==========================
 # 🤖 MACHINE LEARNING
 # ==========================
-st.subheader("🤖 Modelo Predictivo Electoral")
+st.subheader("🤖 Modelo Predictivo")
 
 df_ml = df.copy()
 df_ml["GANADOR_NUM"] = df_ml.apply(
@@ -125,37 +139,38 @@ st.metric("🎯 Precisión del modelo", f"{acc:.2f}")
 # ==========================
 # 🧠 INTERPRETACIÓN
 # ==========================
-st.subheader("🧠 Interpretación de resultados")
+st.subheader("🧠 Interpretación")
 
 st.markdown(f"""
-- El sistema analiza resultados electorales por región y candidato.
-- El modelo de Machine Learning alcanza una precisión de **{acc:.2f}**.
-- Se identifican patrones de votación en mesas electorales.
-- Los votos blancos y nulos son considerados en el análisis.
+- Se analiza la distribución de votos por candidato.
+- El modelo de Machine Learning tiene una precisión de **{acc:.2f}**.
+- El gráfico circular permite ver proporciones claras.
+- El gráfico de barras compara valores absolutos.
 
-✔ Este sistema permite transparencia y análisis ciudadano de datos electorales.
+✔ Sistema orientado a transparencia electoral.
 """)
 
 # ==========================
 # 🔄 USER FLOW
 # ==========================
-st.subheader("🔄 Flujo del Usuario (User Flow)")
+st.subheader("🔄 Flujo del Usuario")
 
 st.markdown("""
 **1️⃣ Selección de filtros**
-- El usuario selecciona región o candidato desde el panel lateral.
+- Región o candidato desde la barra lateral.
 
-**2️⃣ Visualización de resultados**
-- Se muestran gráficos, KPIs y distribución de votos.
+**2️⃣ Visualización de datos**
+- Gráfico de barras (comparación)
+- Gráfico circular (porcentajes)
+- KPIs en tarjetas
 
 **3️⃣ Interpretación**
-- El sistema presenta un análisis automático de resultados y precisión del modelo.
-
-➡️ Esto permite una experiencia clara, intuitiva y orientada a la ciudadanía.
+- Análisis automático de resultados
+- Precisión del modelo predictivo
 """)
 
 # ==========================
-# 📌 DATA PREVIEW
+# 📂 DATOS
 # ==========================
-with st.expander("📂 Ver datos utilizados"):
+with st.expander("📂 Ver datos"):
     st.dataframe(df_filtrado.head())
