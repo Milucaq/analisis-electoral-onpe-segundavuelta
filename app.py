@@ -1,86 +1,107 @@
 import streamlit as st
 import pandas as pd
 
-# CONFIG
-st.set_page_config(page_title="Resultados ONPE 2021", layout="wide")
-st.title("Resultados Electorales ONPE 2021")
+# ==============================
+# CONFIGURACIÓN
+# ==============================
+st.set_page_config(page_title="Dashboard ONPE 2021", layout="wide")
+st.title("📊 Dashboard Electoral ONPE 2021")
 
 # ==============================
 # CARGAR DATOS DESDE GITHUB
 # ==============================
-
 @st.cache_data
 def cargar_datos():
     url = "https://raw.githubusercontent.com/Milucaq/analisis-electoral-onpe-segundavuelta/main/Resultados_2da_vuelta_Version_PCM.csv"
-    
-    return pd.read_csv(
-        url,
-        sep=";",              # MUY IMPORTANTE
-        encoding="latin1",
-        engine="python"
-    )
+    return pd.read_csv(url, sep=";", encoding="latin1", engine="python")
 
 df = cargar_datos()
 
 # ==============================
-# VISTA GENERAL
+# DETECTAR COLUMNAS CLAVE
 # ==============================
+def buscar_col(palabra):
+    cols = [c for c in df.columns if palabra in c.upper()]
+    return cols[0] if cols else None
 
-st.subheader("Vista general del dataset")
-st.dataframe(df.head())
-
-# ==============================
-# DETECTAR DEPARTAMENTO
-# ==============================
-
-posibles_columnas = [col for col in df.columns if "DEPART" in col.upper()]
-
-if len(posibles_columnas) > 0:
-    columna_departamento = posibles_columnas[0]
-else:
-    columna_departamento = df.columns[0]
+col_dep = buscar_col("DEPART")
+col_prov = buscar_col("PROV")
+col_dist = buscar_col("DIST")
+col_votos = buscar_col("VOTO") or buscar_col("TOTAL")
 
 # ==============================
-# FILTRO
+# FILTROS
 # ==============================
+st.sidebar.header("🔎 Filtros")
 
-departamentos = df[columna_departamento].dropna().unique()
+dep_sel = st.sidebar.selectbox("Departamento", ["Todos"] + sorted(df[col_dep].dropna().unique().tolist()))
 
-depto_seleccionado = st.selectbox(
-    "Selecciona un departamento:",
-    sorted(departamentos)
-)
+if dep_sel != "Todos":
+    df = df[df[col_dep] == dep_sel]
 
-df_filtrado = df[df[columna_departamento] == depto_seleccionado]
+prov_sel = st.sidebar.selectbox("Provincia", ["Todos"] + sorted(df[col_prov].dropna().unique().tolist()))
+
+if prov_sel != "Todos":
+    df = df[df[col_prov] == prov_sel]
+
+dist_sel = st.sidebar.selectbox("Distrito", ["Todos"] + sorted(df[col_dist].dropna().unique().tolist()))
+
+if dist_sel != "Todos":
+    df = df[df[col_dist] == dist_sel]
 
 # ==============================
-# TABLA
+# KPI PRINCIPALES
 # ==============================
+st.subheader("📌 Indicadores clave")
 
-st.subheader(f"Datos del departamento: {depto_seleccionado}")
-st.dataframe(df_filtrado)
+total_votos = df[col_votos].sum()
+
+# Intentar detectar candidatos (ajustable)
+posibles_candidatos = [c for c in df.columns if "VOTO" in c.upper() and c != col_votos]
+
+ganador = "N/D"
+if len(posibles_candidatos) >= 2:
+    suma = df[posibles_candidatos].sum().sort_values(ascending=False)
+    ganador = suma.index[0]
+
+col1, col2 = st.columns(2)
+col1.metric("🗳 Total de votos", f"{total_votos:,.0f}")
+col2.metric("🏆 Ganador (estimado)", ganador)
 
 # ==============================
-# GRÁFICO
+# GRÁFICO DE VOTOS POR DEPARTAMENTO
 # ==============================
+st.subheader("📊 Votos por Departamento")
 
-st.subheader("Visualización de datos")
+votos_dep = df.groupby(col_dep)[col_votos].sum().sort_values(ascending=False)
 
-columnas_numericas = df_filtrado.select_dtypes(include=["int64", "float64"]).columns
+st.bar_chart(votos_dep)
 
-if len(columnas_numericas) > 0:
-    columna_grafico = st.selectbox(
-        "Selecciona columna para graficar:",
-        columnas_numericas
-    )
+# ==============================
+# TOP DEPARTAMENTOS
+# ==============================
+st.subheader("🏆 Top Departamentos con más votos")
 
-    st.bar_chart(df_filtrado[columna_grafico])
-else:
-    st.warning("No hay columnas numéricas para graficar")
+top_dep = votos_dep.head(10)
+st.dataframe(top_dep)
+
+# ==============================
+# GRÁFICO DE CANDIDATOS
+# ==============================
+if len(posibles_candidatos) >= 2:
+    st.subheader("🗳 Comparación de candidatos")
+
+    votos_candidatos = df[posibles_candidatos].sum()
+    st.bar_chart(votos_candidatos)
+
+# ==============================
+# TABLA FINAL
+# ==============================
+st.subheader("📋 Datos filtrados")
+st.dataframe(df.head(500))
 
 # ==============================
 # RESUMEN
 # ==============================
-
-st.subheader("Resumen estadístico")
-st.write(df_filtrado.describe())
+st.subheader("📈 Estadísticas")
+st.write(df.describe())
