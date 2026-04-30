@@ -105,8 +105,10 @@ st.dataframe(df.head(500))
 # ==============================
 st.subheader("📈 Estadísticas")
 st.write(df.describe())
+import altair as alt
+
 # ==============================
-# PARTE 2: ANÁLISIS + LIMPIEZA
+# PARTE 2: ANTES VS DESPUÉS
 # ==============================
 
 st.header("📊 Análisis de datos electorales (Antes vs Después)")
@@ -114,14 +116,13 @@ st.header("📊 Análisis de datos electorales (Antes vs Después)")
 # ------------------------------
 # DETECTAR COLUMNAS
 # ------------------------------
-col_validos = [c for c in df.columns if "VALID" in c.upper()]
-col_nulos = [c for c in df.columns if "NULO" in c.upper()]
-col_blancos = [c for c in df.columns if "BLANCO" in c.upper()]
+def buscar_col(palabra):
+    cols = [c for c in df.columns if palabra in c.upper()]
+    return cols[0] if cols else None
 
-# Tomamos la primera coincidencia
-col_validos = col_validos[0] if col_validos else None
-col_nulos = col_nulos[0] if col_nulos else None
-col_blancos = col_blancos[0] if col_blancos else None
+col_validos = buscar_col("VALID")
+col_nulos = buscar_col("NULO")
+col_blancos = buscar_col("BLANCO")
 
 # ------------------------------
 # ANTES DE LIMPIEZA
@@ -130,29 +131,31 @@ st.subheader("🟥 Antes de la limpieza")
 
 df_antes = df.copy()
 
-# Convertir a numérico por seguridad
 for col in [col_validos, col_nulos, col_blancos]:
     if col:
         df_antes[col] = pd.to_numeric(df_antes[col], errors="coerce")
 
-# Totales antes
 validos_antes = df_antes[col_validos].sum() if col_validos else 0
 nulos_antes = df_antes[col_nulos].sum() if col_nulos else 0
 blancos_antes = df_antes[col_blancos].sum() if col_blancos else 0
 
-# Crear dataframe resumen
 data_antes = pd.DataFrame({
     "Tipo": ["Válidos", "Nulos", "Blancos"],
     "Cantidad": [validos_antes, nulos_antes, blancos_antes]
 })
 
-# Gráfico de barras
+# 📊 BARRAS (ANTES)
 st.write("Gráfico de barras (Antes)")
 st.bar_chart(data_antes.set_index("Tipo"))
 
-# Gráfico circular
+# 🥧 PIE (ANTES) con Altair
 st.write("Gráfico circular (Antes)")
-st.pyplot(data_antes.set_index("Tipo").plot.pie(y="Cantidad", autopct='%1.1f%%').figure)
+pie_antes = alt.Chart(data_antes).mark_arc().encode(
+    theta="Cantidad",
+    color="Tipo",
+    tooltip=["Tipo", "Cantidad"]
+)
+st.altair_chart(pie_antes, use_container_width=True)
 
 # ------------------------------
 # LIMPIEZA DE DATOS
@@ -161,7 +164,6 @@ st.subheader("🧹 Limpieza de datos")
 
 df_despues = df.copy()
 
-# Convertir a numérico y rellenar nulos
 for col in [col_validos, col_nulos, col_blancos]:
     if col:
         df_despues[col] = pd.to_numeric(df_despues[col], errors="coerce").fillna(0)
@@ -180,10 +182,15 @@ data_despues = pd.DataFrame({
     "Cantidad": [validos_despues, nulos_despues, blancos_despues]
 })
 
-# Gráfico de barras
+# 📊 BARRAS (DESPUÉS)
 st.write("Gráfico de barras (Después)")
 st.bar_chart(data_despues.set_index("Tipo"))
 
-# Gráfico circular
+# 🥧 PIE (DESPUÉS)
 st.write("Gráfico circular (Después)")
-st.pyplot(data_despues.set_index("Tipo").plot.pie(y="Cantidad", autopct='%1.1f%%').figure)
+pie_despues = alt.Chart(data_despues).mark_arc().encode(
+    theta="Cantidad",
+    color="Tipo",
+    tooltip=["Tipo", "Cantidad"]
+)
+st.altair_chart(pie_despues, use_container_width=True)
