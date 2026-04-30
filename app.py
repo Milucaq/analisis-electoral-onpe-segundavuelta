@@ -18,179 +18,114 @@ def cargar_datos():
 df = cargar_datos()
 
 # ==============================
-# DETECTAR COLUMNAS CLAVE
+# DETECTAR COLUMNAS
 # ==============================
 def buscar_col(palabra):
-    cols = [c for c in df.columns if palabra in c.upper()]
-    return cols[0] if cols else None
+    for col in df.columns:
+        if palabra in col.upper():
+            return col
+    return None
 
 col_dep = buscar_col("DEPART")
 col_prov = buscar_col("PROV")
 col_dist = buscar_col("DIST")
-col_votos = buscar_col("VOTO") or buscar_col("TOTAL")
+col_validos = buscar_col("VALID")
+col_nulos = buscar_col("NULO")
+col_blancos = buscar_col("BLANCO")
 
 # ==============================
 # FILTROS
 # ==============================
 st.sidebar.header("🔎 Filtros")
 
-dep_sel = st.sidebar.selectbox("Departamento", ["Todos"] + sorted(df[col_dep].dropna().unique().tolist()))
+if col_dep:
+    dep_sel = st.sidebar.selectbox("Departamento", ["Todos"] + sorted(df[col_dep].dropna().unique().tolist()))
+    if dep_sel != "Todos":
+        df = df[df[col_dep] == dep_sel]
 
-if dep_sel != "Todos":
-    df = df[df[col_dep] == dep_sel]
+if col_prov:
+    prov_sel = st.sidebar.selectbox("Provincia", ["Todos"] + sorted(df[col_prov].dropna().unique().tolist()))
+    if prov_sel != "Todos":
+        df = df[df[col_prov] == prov_sel]
 
-prov_sel = st.sidebar.selectbox("Provincia", ["Todos"] + sorted(df[col_prov].dropna().unique().tolist()))
+if col_dist:
+    dist_sel = st.sidebar.selectbox("Distrito", ["Todos"] + sorted(df[col_dist].dropna().unique().tolist()))
+    if dist_sel != "Todos":
+        df = df[df[col_dist] == dist_sel]
 
-if prov_sel != "Todos":
-    df = df[df[col_prov] == prov_sel]
+# ==============================
+# LIMPIEZA DE DATOS
+# ==============================
+df_limpio = df.copy()
 
-dist_sel = st.sidebar.selectbox("Distrito", ["Todos"] + sorted(df[col_dist].dropna().unique().tolist()))
-
-if dist_sel != "Todos":
-    df = df[df[col_dist] == dist_sel]
+for col in [col_validos, col_nulos, col_blancos]:
+    if col:
+        df_limpio[col] = pd.to_numeric(df_limpio[col], errors="coerce").fillna(0)
 
 # ==============================
 # KPI PRINCIPALES
 # ==============================
-st.subheader("📌 Indicadores clave")
+st.subheader("📌 Indicadores")
 
-total_votos = df[col_votos].sum()
+total_mesas = len(df)
+total_validos = df_limpio[col_validos].sum() if col_validos else 0
+total_nulos = df_limpio[col_nulos].sum() if col_nulos else 0
+total_blancos = df_limpio[col_blancos].sum() if col_blancos else 0
 
-# Intentar detectar candidatos (ajustable)
-posibles_candidatos = [c for c in df.columns if "VOTO" in c.upper() and c != col_votos]
-
-ganador = "N/D"
-if len(posibles_candidatos) >= 2:
-    suma = df[posibles_candidatos].sum().sort_values(ascending=False)
-    ganador = suma.index[0]
-
-col1, col2 = st.columns(2)
-col1.metric("🗳 Total de votos", f"{total_votos:,.0f}")
-col2.metric("🏆 Ganador (estimado)", ganador)
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Mesas", total_mesas)
+c2.metric("Votos válidos", int(total_validos))
+c3.metric("Nulos", int(total_nulos))
+c4.metric("Blancos", int(total_blancos))
 
 # ==============================
-# GRÁFICO DE VOTOS POR DEPARTAMENTO
+# GRÁFICO PRINCIPAL
 # ==============================
-st.subheader("📊 Votos por Departamento")
+st.subheader("📊 Distribución de votos")
 
-votos_dep = df.groupby(col_dep)[col_votos].sum().sort_values(ascending=False)
+df_graf = pd.DataFrame({
+    "Tipo": ["Válidos", "Nulos", "Blancos"],
+    "Cantidad": [total_validos, total_nulos, total_blancos]
+}).set_index("Tipo")
 
-st.bar_chart(votos_dep)
-
-# ==============================
-# TOP DEPARTAMENTOS
-# ==============================
-st.subheader("🏆 Top Departamentos con más votos")
-
-top_dep = votos_dep.head(10)
-st.dataframe(top_dep)
+st.bar_chart(df_graf)
 
 # ==============================
-# GRÁFICO DE CANDIDATOS
+# ANTES VS DESPUÉS
 # ==============================
-if len(posibles_candidatos) >= 2:
-    st.subheader("🗳 Comparación de candidatos")
+st.subheader("⚖️ Comparación antes vs después")
 
-    votos_candidatos = df[posibles_candidatos].sum()
-    st.bar_chart(votos_candidatos)
+validos_antes = df[col_validos].fillna(0).sum() if col_validos else 0
+validos_despues = df_limpio[col_validos].sum() if col_validos else 0
+
+df_comp = pd.DataFrame({
+    "Estado": ["Antes", "Después"],
+    "Votos válidos": [validos_antes, validos_despues]
+}).set_index("Estado")
+
+st.bar_chart(df_comp)
 
 # ==============================
-# TABLA FINAL
+# VOTOS POR DEPARTAMENTO
 # ==============================
-st.subheader("📋 Datos filtrados")
+if col_dep and col_validos:
+    st.subheader("🏆 Votos por departamento")
+
+    votos_dep = df_limpio.groupby(col_dep)[col_validos].sum().sort_values(ascending=False)
+
+    st.bar_chart(votos_dep)
+
+    st.subheader("Top departamentos con más votos")
+    st.dataframe(votos_dep.head(10))
+
+# ==============================
+# TABLA
+# ==============================
+st.subheader("📋 Datos")
 st.dataframe(df.head(500))
 
 # ==============================
 # RESUMEN
 # ==============================
 st.subheader("📈 Estadísticas")
-st.write(df.describe())
-import altair as alt
-
-# ==============================
-# PARTE 2: ANTES VS DESPUÉS
-# ==============================
-
-st.header("📊 Análisis de datos electorales (Antes vs Después)")
-
-# ------------------------------
-# DETECTAR COLUMNAS
-# ------------------------------
-def buscar_col(palabra):
-    cols = [c for c in df.columns if palabra in c.upper()]
-    return cols[0] if cols else None
-
-col_validos = buscar_col("VALID")
-col_nulos = buscar_col("NULO")
-col_blancos = buscar_col("BLANCO")
-
-# ------------------------------
-# ANTES DE LIMPIEZA
-# ------------------------------
-st.subheader("🟥 Antes de la limpieza")
-
-df_antes = df.copy()
-
-for col in [col_validos, col_nulos, col_blancos]:
-    if col:
-        df_antes[col] = pd.to_numeric(df_antes[col], errors="coerce")
-
-validos_antes = df_antes[col_validos].sum() if col_validos else 0
-nulos_antes = df_antes[col_nulos].sum() if col_nulos else 0
-blancos_antes = df_antes[col_blancos].sum() if col_blancos else 0
-
-data_antes = pd.DataFrame({
-    "Tipo": ["Válidos", "Nulos", "Blancos"],
-    "Cantidad": [validos_antes, nulos_antes, blancos_antes]
-})
-
-# 📊 BARRAS (ANTES)
-st.write("Gráfico de barras (Antes)")
-st.bar_chart(data_antes.set_index("Tipo"))
-
-# 🥧 PIE (ANTES) con Altair
-st.write("Gráfico circular (Antes)")
-pie_antes = alt.Chart(data_antes).mark_arc().encode(
-    theta="Cantidad",
-    color="Tipo",
-    tooltip=["Tipo", "Cantidad"]
-)
-st.altair_chart(pie_antes, use_container_width=True)
-
-# ------------------------------
-# LIMPIEZA DE DATOS
-# ------------------------------
-st.subheader("🧹 Limpieza de datos")
-
-df_despues = df.copy()
-
-for col in [col_validos, col_nulos, col_blancos]:
-    if col:
-        df_despues[col] = pd.to_numeric(df_despues[col], errors="coerce").fillna(0)
-
-# ------------------------------
-# DESPUÉS DE LIMPIEZA
-# ------------------------------
-st.subheader("🟩 Después de la limpieza")
-
-validos_despues = df_despues[col_validos].sum() if col_validos else 0
-nulos_despues = df_despues[col_nulos].sum() if col_nulos else 0
-blancos_despues = df_despues[col_blancos].sum() if col_blancos else 0
-
-data_despues = pd.DataFrame({
-    "Tipo": ["Válidos", "Nulos", "Blancos"],
-    "Cantidad": [validos_despues, nulos_despues, blancos_despues]
-})
-
-# 📊 BARRAS (DESPUÉS)
-st.write("Gráfico de barras (Después)")
-st.bar_chart(data_despues.set_index("Tipo"))
-
-# 🥧 PIE (DESPUÉS)
-st.write("Gráfico circular (Después)")
-pie_despues = alt.Chart(data_despues).mark_arc().encode(
-    theta="Cantidad",
-    color="Tipo",
-    tooltip=["Tipo", "Cantidad"]
-)
-st.altair_chart(pie_despues, use_container_width=True)
+st.write(df_limpio.describe())
