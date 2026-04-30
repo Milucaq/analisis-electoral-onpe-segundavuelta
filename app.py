@@ -105,3 +105,43 @@ st.dataframe(df.head(500))
 # ==============================
 st.subheader("📈 Estadísticas")
 st.write(df.describe())
+# ==============================
+# ANÁLISIS ELECTORAL (PARTE 2)
+# ==============================
+
+st.subheader("📊 Análisis de datos electorales")
+
+# Número de mesas
+numero_mesas = len(df)
+
+# Detectar columnas automáticamente
+col_ubigeo = [c for c in df.columns if "UBIGEO" in c.upper()]
+col_validos = [c for c in df.columns if "VALID" in c.upper()]
+col_nulos = [c for c in df.columns if "NULO" in c.upper()]
+col_blancos = [c for c in df.columns if "BLANCO" in c.upper()]
+
+# KPIs
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Número de mesas", numero_mesas)
+
+if col_ubigeo:
+    col2.metric("Ubigeos únicos", df[col_ubigeo[0]].nunique())
+
+if col_validos:
+    col3.metric("Votos válidos", int(df[col_validos[0]].sum()))
+
+if col_nulos and col_blancos:
+    col4.metric("Nulos + Blancos", int(df[col_nulos[0]].sum() + df[col_blancos[0]].sum()))
+
+# ==============================
+# LIMPIEZA DE DATOS
+# ==============================
+
+st.subheader("🧹 Limpieza de datos")
+
+# Reemplazar nulos
+df_limpio = df.fillna(0)
+
+st.write("Datos después de limpieza:")
+st.dataframe(df_limpio.head())
