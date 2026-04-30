@@ -180,3 +180,78 @@ st.write(f"""
 📊 **Conclusión:**
 Los resultados reflejan la preferencia electoral de la población en la segunda vuelta presidencial, mostrando diferencias entre regiones y una tendencia clara hacia el candidato ganador.
 """)
+# ==============================
+# MACHINE LEARNING
+# ==============================
+st.header("🤖 Machine Learning aplicado")
+
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.cluster import KMeans
+
+# ------------------------------
+# PREPARAR DATOS
+# ------------------------------
+df_ml = df.copy()
+
+# Crear variable objetivo (ganador por mesa)
+df_ml["GANADOR"] = df_ml.apply(
+    lambda x: 1 if x["VOTOS_P1"] > x["VOTOS_P2"] else 0, axis=1
+)
+
+# Variables predictoras
+X = df_ml[["VOTOS_P1", "VOTOS_P2", "VOTOS_VB", "VOTOS_VN"]]
+y = df_ml["GANADOR"]
+
+# ------------------------------
+# DIVISIÓN
+# ------------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42
+)
+
+# ------------------------------
+# MODELO DE CLASIFICACIÓN
+# ------------------------------
+modelo = DecisionTreeClassifier(max_depth=5)
+modelo.fit(X_train, y_train)
+
+y_pred = modelo.predict(X_test)
+
+accuracy = accuracy_score(y_test, y_pred)
+
+st.subheader("📊 Clasificación: Predicción de ganador")
+
+st.write(f"✔ Precisión del modelo: {accuracy:.2f}")
+
+# ------------------------------
+# CLUSTERING
+# ------------------------------
+st.subheader("📊 Agrupamiento de mesas (Clustering)")
+
+kmeans = KMeans(n_clusters=3, random_state=42)
+
+df_ml["CLUSTER"] = kmeans.fit_predict(X)
+
+st.write("Distribución de clusters:")
+st.bar_chart(df_ml["CLUSTER"].value_counts())
+
+# ------------------------------
+# VISUALIZACIÓN SIMPLE
+# ------------------------------
+st.subheader("📈 Relación entre votos y clusters")
+
+st.scatter_chart(df_ml[["VOTOS_P1", "VOTOS_P2"]])
+
+# ------------------------------
+# INTERPRETACIÓN
+# ------------------------------
+st.subheader("🧠 Interpretación del modelo")
+
+st.write(f"""
+- El problema se abordó como **clasificación**, prediciendo el ganador por mesa.
+- El modelo alcanzó una precisión de **{accuracy:.2f}**, lo que indica un buen ajuste.
+- El clustering permitió agrupar mesas con comportamientos similares.
+- Se identifican patrones de voto que diferencian regiones o tendencias electorales.
+""")
